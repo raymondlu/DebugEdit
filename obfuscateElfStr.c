@@ -539,17 +539,17 @@ main (int argc, char *argv[])
 
 	for (i = 1; i < dso->ehdr.e_shnum; i++)
 	{
-    Elf_Data *data;
-    Elf_Scn *scn;
+		Elf_Data *data;
+		Elf_Scn *scn;
 
 		const char *name;
 		name = strptr (dso, dso->ehdr.e_shstrndx, dso->shdr[i].sh_name);
 
 		//fprintf (debug_fd, "sh:%d, sh_type: %d, sh_name: %s\n", i, dso->shdr[i].sh_type, name);
 		if (strncmp (name, ".debug_str", sizeof (".debug_str") - 1) == 0 ||
-			strncmp (name, ".strtab", sizeof (".strtab") - 1) == 0 ||	
-			strncmp (name, ".dynstr", sizeof (".dynstr") - 1) == 0	
-		)
+				strncmp (name, ".strtab", sizeof (".strtab") - 1) == 0 ||	
+				strncmp (name, ".dynstr", sizeof (".dynstr") - 1) == 0	
+			 )
 		{
 			scn = dso->scn[i];
 			data = elf_getdata (scn, NULL);
@@ -561,28 +561,28 @@ main (int argc, char *argv[])
 			edit_debugstr(dso, data);
 		}
 		/*else if (strncmp (name, ".symtab", sizeof (".symtab") - 1) == 0)
-		{
-			//fprintf(debug_fd, "########.symtab sec %d\n", i);
-			scn = dso->scn[i];
-			data = elf_getdata (scn, NULL);
-			debug_sections[DEBUG_SYMTAB].data = data->d_buf;
-			debug_sections[DEBUG_SYMTAB].elf_data = data;
-			debug_sections[DEBUG_SYMTAB].size = data->d_size;
-			debug_sections[DEBUG_SYMTAB].sec = i;
-			fprintf(debug_fd, "Record symbol section %d name %s data size %ld\n", i, name, data->d_size);
+			{
+		//fprintf(debug_fd, "########.symtab sec %d\n", i);
+		scn = dso->scn[i];
+		data = elf_getdata (scn, NULL);
+		debug_sections[DEBUG_SYMTAB].data = data->d_buf;
+		debug_sections[DEBUG_SYMTAB].elf_data = data;
+		debug_sections[DEBUG_SYMTAB].size = data->d_size;
+		debug_sections[DEBUG_SYMTAB].sec = i;
+		fprintf(debug_fd, "Record symbol section %d name %s data size %ld\n", i, name, data->d_size);
 
-			edit_symtab(dso, data);
+		edit_symtab(dso, data);
 		}
 		else if (strncmp(name, ".dynsym", sizeof(".dynsym") - 1) == 0)
 		{
-			scn = dso->scn[i];
-			data = elf_getdata (scn, NULL);
-			debug_sections[DEBUG_DYNSYMTAB].data = data->d_buf;
-			debug_sections[DEBUG_DYNSYMTAB].elf_data = data;
-			debug_sections[DEBUG_DYNSYMTAB].size = data->d_size;
-			debug_sections[DEBUG_DYNSYMTAB].sec = i;
-			fprintf(debug_fd, "Record dynamic symbol section %d name %s data size %ld\n", i, name, data->d_size);
-			edit_dynsymtab(dso, data);
+		scn = dso->scn[i];
+		data = elf_getdata (scn, NULL);
+		debug_sections[DEBUG_DYNSYMTAB].data = data->d_buf;
+		debug_sections[DEBUG_DYNSYMTAB].elf_data = data;
+		debug_sections[DEBUG_DYNSYMTAB].size = data->d_size;
+		debug_sections[DEBUG_DYNSYMTAB].sec = i;
+		fprintf(debug_fd, "Record dynamic symbol section %d name %s data size %ld\n", i, name, data->d_size);
+		edit_dynsymtab(dso, data);
 		}*/
 
 	}
