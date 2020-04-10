@@ -416,21 +416,22 @@ fdopen_dso (int fd, const char *name, int readonly)
 
 	/* Allocate DSO structure. Leave place for additional 20 new section
 		 headers.  */
+	int new_section_count = 20;
 	dso = (DSO *)
-		malloc (sizeof(DSO) + (ehdr.e_shnum + 20) * sizeof(GElf_Shdr)
-				+ (ehdr.e_shnum + 20) * sizeof(Elf_Scn *));
+		malloc (sizeof(DSO) + (ehdr.e_shnum + new_section_count) * sizeof(GElf_Shdr)
+				+ (ehdr.e_shnum + new_section_count) * sizeof(Elf_Scn *));
 	if (!dso)
 	{
 		error (0, ENOMEM, "Could not open DSO");
 		goto error_out;
 	}
 
-	elf_flagelf (elf, ELF_C_SET, ELF_F_LAYOUT);
+	//elf_flagelf (elf, ELF_C_SET, ELF_F_LAYOUT);
 
 	memset (dso, 0, sizeof(DSO));
 	dso->elf = elf;
 	dso->ehdr = ehdr;
-	dso->scn = (Elf_Scn **) &dso->shdr[ehdr.e_shnum + 20];
+	dso->scn = (Elf_Scn **) &dso->shdr[ehdr.e_shnum + new_section_count];
 
 	for (i = 0; i < ehdr.e_shnum; ++i)
 	{
@@ -545,7 +546,10 @@ main (int argc, char *argv[])
 		name = strptr (dso, dso->ehdr.e_shstrndx, dso->shdr[i].sh_name);
 
 		//fprintf (debug_fd, "sh:%d, sh_type: %d, sh_name: %s\n", i, dso->shdr[i].sh_type, name);
-		if (strncmp (name, ".debug_str", sizeof (".debug_str") - 1) == 0)
+		if (strncmp (name, ".debug_str", sizeof (".debug_str") - 1) == 0 ||
+			strncmp (name, ".strtab", sizeof (".strtab") - 1) == 0 ||	
+			strncmp (name, ".dynstr", sizeof (".dynstr") - 1) == 0	
+		)
 		{
 			scn = dso->scn[i];
 			data = elf_getdata (scn, NULL);
@@ -553,10 +557,10 @@ main (int argc, char *argv[])
 			debug_sections[DEBUG_STR].elf_data = data;
 			debug_sections[DEBUG_STR].size = data->d_size;
 			debug_sections[DEBUG_STR].sec = i;
-			fprintf(debug_fd, "Record debug string section %d name %s data size %ld\n", i, name, data->d_size);
+			fprintf(debug_fd, "Record string section %d name %s data size %ld\n", i, name, data->d_size);
 			edit_debugstr(dso, data);
 		}
-		else if (strncmp (name, ".symtab", sizeof (".symtab") - 1) == 0)
+		/*else if (strncmp (name, ".symtab", sizeof (".symtab") - 1) == 0)
 		{
 			//fprintf(debug_fd, "########.symtab sec %d\n", i);
 			scn = dso->scn[i];
@@ -579,7 +583,7 @@ main (int argc, char *argv[])
 			debug_sections[DEBUG_DYNSYMTAB].sec = i;
 			fprintf(debug_fd, "Record dynamic symbol section %d name %s data size %ld\n", i, name, data->d_size);
 			edit_dynsymtab(dso, data);
-		}
+		}*/
 
 	}
 
