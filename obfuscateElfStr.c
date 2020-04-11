@@ -80,51 +80,6 @@ typedef struct
 	GElf_Shdr shdr[0];
 } DSO;
 
-typedef struct
-{
-	unsigned char *ptr;
-	uint32_t addend;
-} REL;
-
-#define read_uleb128(ptr) ({        \
-		unsigned int ret = 0;            \
-		unsigned int c;            \
-		int shift = 0;            \
-		do                    \
-		{                    \
-		c = *ptr++;            \
-		ret |= (c & 0x7f) << shift;    \
-		shift += 7;            \
-		} while (c & 0x80);            \
-		\
-		if (shift >= 35)            \
-		ret = UINT_MAX;            \
-		ret;                    \
-		})
-	static inline uint16_t
-buf_read_ule16 (unsigned char *data)
-{
-	return data[0] | (data[1] << 8);
-}
-
-	static inline uint16_t
-buf_read_ube16 (unsigned char *data)
-{
-	return data[1] | (data[0] << 8);
-}
-
-	static inline uint32_t
-buf_read_ule32 (unsigned char *data)
-{
-	return data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-}
-
-	static inline uint32_t
-buf_read_ube32 (unsigned char *data)
-{
-	return data[3] | (data[2] << 8) | (data[1] << 16) | (data[0] << 24);
-}
-
 	static const char *
 strptr (DSO *dso, int sec, off_t offset)
 {
@@ -146,105 +101,6 @@ strptr (DSO *dso, int sec, off_t offset)
 
 	return NULL;
 }
-
-
-#define read_1(ptr) *ptr++
-
-#define read_16(ptr) ({                    \
-		uint16_t ret = do_read_16 (ptr);            \
-		ptr += 2;                        \
-		ret;                            \
-		})
-
-#define read_32(ptr) ({                    \
-		uint32_t ret = do_read_32 (ptr);            \
-		ptr += 4;                        \
-		ret;                            \
-		})
-
-REL *relptr, *relend;
-int reltype;
-
-#define do_read_32_relocated(ptr) ({            \
-		uint32_t dret = do_read_32 (ptr);            \
-		if (relptr)                        \
-		{                            \
-		while (relptr < relend && relptr->ptr < ptr)    \
-		++relptr;                    \
-		if (relptr < relend && relptr->ptr == ptr)    \
-		{                        \
-		if (reltype == SHT_REL)            \
-		dret += relptr->addend;            \
-		else                        \
-		dret = relptr->addend;            \
-		}                        \
-		}                            \
-		dret;                            \
-		})
-
-#define read_32_relocated(ptr) ({            \
-		uint32_t ret = do_read_32_relocated (ptr);        \
-		ptr += 4;                        \
-		ret;                            \
-		})
-static struct
-{
-	const char *name;
-	unsigned char *data;
-	Elf_Data *elf_data;
-	size_t size;
-	int sec, relsec;
-} debug_sections[] =
-{
-#define DEBUG_INFO    0
-#define DEBUG_ABBREV    1
-#define DEBUG_LINE    2
-#define DEBUG_ARANGES    3
-#define DEBUG_PUBNAMES    4
-#define DEBUG_PUBTYPES    5
-#define DEBUG_MACINFO    6
-#define DEBUG_LOC    7
-#define DEBUG_STR    8
-#define DEBUG_FRAME    9
-#define DEBUG_RANGES    10
-#define DEBUG_TYPES    11
-#define DEBUG_MACRO    12
-#define DEBUG_GDB_SCRIPT    13
-#define DEBUG_SYMTAB    14
-#define DEBUG_STRTAB    15
-#define DEBUG_DYNSYMTAB    16
-
-	{ ".debug_info", NULL, NULL, 0, 0, 0 },
-	{ ".debug_abbrev", NULL, NULL, 0, 0, 0 },
-	{ ".debug_line", NULL, NULL, 0, 0, 0 },
-	{ ".debug_aranges", NULL, NULL, 0, 0, 0 },
-	{ ".debug_pubnames", NULL, NULL, 0, 0, 0 },
-	{ ".debug_pubtypes", NULL, NULL, 0, 0, 0 },
-	{ ".debug_macinfo", NULL, NULL, 0, 0, 0 },
-	{ ".debug_loc", NULL, NULL, 0, 0, 0 },
-	{ ".debug_str", NULL, NULL, 0, 0, 0 },
-	{ ".debug_frame", NULL, NULL, 0, 0, 0 },
-	{ ".debug_ranges", NULL, NULL, 0, 0, 0 },
-	{ ".debug_types", NULL, NULL, 0, 0, 0 },
-	{ ".debug_macro", NULL, NULL, 0, 0, 0 },
-	{ ".debug_gdb_scripts", NULL, NULL, 0, 0, 0 },
-	{ ".symtab", NULL, NULL, 0, 0, 0 },
-	{ ".strtab", NULL, NULL, 0, 0, 0 },
-	{ ".dynsym", NULL, NULL, 0, 0, 0 },
-	{ NULL, NULL, NULL, 0, 0, 0 }
-};
-
-#define IS_DIR_SEPARATOR(c) ((c)=='/')
-
-void make_win_path(char * path)
-{
-	int k = 0;
-	while (path[k] != '\0')
-	{
-		if (path[k] == '/') path[k] = '\\';
-		k++;
-	}
-}
 void make_string_obfuscation(char * s)
 {
 	int k = 0;
@@ -258,80 +114,6 @@ void make_string_obfuscation(char * s)
 
 #define LST_FILE 0
 #define LST_DIR 1
-	static void
-edit_symtab (DSO *dso, Elf_Data *data)
-{
-	GElf_Sym sym;
-	GElf_Shdr shdr;
-	unsigned long stridx = -1;
-	int i;
-	char *s;
-	int sec = debug_sections[DEBUG_SYMTAB].sec;
-	Elf_Data *strtab_data;
-	gelf_getshdr(dso->scn[sec], &shdr);
-
-	stridx = shdr.sh_link;
-
-	strtab_data = elf_getdata(dso->scn[stridx], NULL);
-
-	i = 0;
-	while (gelf_getsym(data, i++, &sym) != NULL) 
-	{
-		s = elf_strptr(dso->elf, stridx, sym.st_name);
-
-		if (GELF_ST_TYPE(sym.st_info) == STT_FILE)
-		{
-			fprintf(debug_fd, "file %s\n", s);
-			fprintf(debug_fd, "obfuscate symbol file %s\n", s);
-			make_string_obfuscation(s);
-			elf_flagdata (strtab_data, ELF_C_SET, ELF_F_DIRTY);
-		}
-		else
-		{
-			fprintf(debug_fd, "obfuscate symbol %s\n", s);
-			make_string_obfuscation(s);
-			elf_flagdata (strtab_data, ELF_C_SET, ELF_F_DIRTY);
-		}
-	}
-}
-
-	static void
-edit_dynsymtab (DSO *dso, Elf_Data *data)
-{
-	GElf_Sym sym;
-	GElf_Shdr shdr;
-	unsigned long stridx = -1;
-	int i;
-	char *s;
-	int sec = debug_sections[DEBUG_DYNSYMTAB].sec;
-	Elf_Data *strtab_data;
-	gelf_getshdr(dso->scn[sec], &shdr);
-
-	stridx = shdr.sh_link;
-
-	strtab_data = elf_getdata(dso->scn[stridx], NULL);
-
-	i = 0;
-	while (gelf_getsym(data, i++, &sym) != NULL) 
-	{
-		s = elf_strptr(dso->elf, stridx, sym.st_name);
-
-		if (GELF_ST_TYPE(sym.st_info) == STT_FILE)
-		{
-			fprintf(debug_fd, "file %s\n", s);
-			fprintf(debug_fd, "obfuscate dynamic symbol file %s\n", s);
-			make_string_obfuscation(s);
-			elf_flagdata (strtab_data, ELF_C_SET, ELF_F_DIRTY);
-		}
-		else
-		{
-			fprintf(debug_fd, "obfuscate dynamic symbol %s\n", s);
-			make_string_obfuscation(s);
-			elf_flagdata (strtab_data, ELF_C_SET, ELF_F_DIRTY);
-		}
-	}
-}
-
 static void edit_debugstr (DSO *dso, Elf_Data *data)
 {
 	off_t offset = data->d_off;
@@ -529,14 +311,6 @@ main (int argc, char *argv[])
 	if (dso == NULL)
 		exit (1);
 
-	for (i = 0; debug_sections[i].name; ++i)
-	{
-		debug_sections[i].data = NULL;
-		debug_sections[i].size = 0;
-		debug_sections[i].sec = 0;
-		debug_sections[i].relsec = 0;
-	}
-
 	for (i = 1; i < dso->ehdr.e_shnum; i++)
 	{
 		Elf_Data *data;
@@ -553,38 +327,9 @@ main (int argc, char *argv[])
 		{
 			scn = dso->scn[i];
 			data = elf_getdata (scn, NULL);
-			debug_sections[DEBUG_STR].data = data->d_buf;
-			debug_sections[DEBUG_STR].elf_data = data;
-			debug_sections[DEBUG_STR].size = data->d_size;
-			debug_sections[DEBUG_STR].sec = i;
 			fprintf(debug_fd, "Record string section %d name %s data size %ld\n", i, name, data->d_size);
 			edit_debugstr(dso, data);
 		}
-		/*else if (strncmp (name, ".symtab", sizeof (".symtab") - 1) == 0)
-			{
-		//fprintf(debug_fd, "########.symtab sec %d\n", i);
-		scn = dso->scn[i];
-		data = elf_getdata (scn, NULL);
-		debug_sections[DEBUG_SYMTAB].data = data->d_buf;
-		debug_sections[DEBUG_SYMTAB].elf_data = data;
-		debug_sections[DEBUG_SYMTAB].size = data->d_size;
-		debug_sections[DEBUG_SYMTAB].sec = i;
-		fprintf(debug_fd, "Record symbol section %d name %s data size %ld\n", i, name, data->d_size);
-
-		edit_symtab(dso, data);
-		}
-		else if (strncmp(name, ".dynsym", sizeof(".dynsym") - 1) == 0)
-		{
-		scn = dso->scn[i];
-		data = elf_getdata (scn, NULL);
-		debug_sections[DEBUG_DYNSYMTAB].data = data->d_buf;
-		debug_sections[DEBUG_DYNSYMTAB].elf_data = data;
-		debug_sections[DEBUG_DYNSYMTAB].size = data->d_size;
-		debug_sections[DEBUG_DYNSYMTAB].sec = i;
-		fprintf(debug_fd, "Record dynamic symbol section %d name %s data size %ld\n", i, name, data->d_size);
-		edit_dynsymtab(dso, data);
-		}*/
-
 	}
 
 	if (readonly == 0 && elf_update (dso->elf, ELF_C_WRITE) < 0)
