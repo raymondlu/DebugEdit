@@ -18,7 +18,7 @@
 
 
 /* Needed for libelf */
-#define _FILE_OFFSET_BITS 64
+//#define _FILE_OFFSET_BITS 64
 
 #include <assert.h>
 #if defined(__linux__)
@@ -320,7 +320,7 @@ main (int argc, char *argv[])
 		name = strptr (dso, dso->ehdr.e_shstrndx, dso->shdr[i].sh_name);
 
 		//fprintf (debug_fd, "sh:%d, sh_type: %d, sh_name: %s\n", i, dso->shdr[i].sh_type, name);
-		if (strncmp (name, ".debug_str", sizeof (".debug_str") - 1) == 0 ||
+		if (/*strncmp (name, ".debug_str", sizeof (".debug_str") - 1) == 0 ||*/
 				strncmp (name, ".strtab", sizeof (".strtab") - 1) == 0 ||	
 				strncmp (name, ".dynstr", sizeof (".dynstr") - 1) == 0	
 			 )
