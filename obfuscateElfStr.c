@@ -43,7 +43,7 @@
 #include <popt.h>
 
 #include <gelf.h>
-#include <sys/elf_common.h>
+//#include <sys/elf_common.h>
 #include "dwarf.h"
 #include "hashtab.h"
 
@@ -114,7 +114,7 @@ void make_string_obfuscation(char * s)
 
 #define LST_FILE 0
 #define LST_DIR 1
-static void edit_debugstr (DSO *dso, Elf_Data *data)
+static void edit_debugstr (Elf_Data *data)
 {
 	off_t offset = data->d_off;
 	size_t size = data->d_size;
@@ -125,7 +125,7 @@ static void edit_debugstr (DSO *dso, Elf_Data *data)
 		make_string_obfuscation(strptr);
 		consume_size += strlen(strptr) + 1;
 	}
-	elf_flagdata (data, ELF_C_SET, ELF_F_DIRTY);
+	//elf_flagdata (data, ELF_C_SET, ELF_F_DIRTY);
 }
 
 static struct poptOption optionsTable[] =
@@ -319,18 +319,24 @@ main (int argc, char *argv[])
 		const char *name;
 		name = strptr (dso, dso->ehdr.e_shstrndx, dso->shdr[i].sh_name);
 
-		//fprintf (debug_fd, "sh:%d, sh_type: %d, sh_name: %s\n", i, dso->shdr[i].sh_type, name);
+		fprintf (debug_fd, "sh:%d, sh_type: %d, sh_name: %s\n", i, dso->shdr[i].sh_type, name);
 		if (/*strncmp (name, ".debug_str", sizeof (".debug_str") - 1) == 0 ||*/
 				strncmp (name, ".strtab", sizeof (".strtab") - 1) == 0 ||	
 				strncmp (name, ".dynstr", sizeof (".dynstr") - 1) == 0	
 			 )
 		{
 			scn = dso->scn[i];
-			data = elf_getdata (scn, NULL);
-			fprintf(debug_fd, "Record string section %d name %s data size %ld\n", i, name, data->d_size);
-			edit_debugstr(dso, data);
+			data = NULL;
+			size_t subsction_index = 0;
+			while ((data = elf_getdata (scn, data)) != NULL)
+			{
+				edit_debugstr(data);
+				fprintf(debug_fd, "Record string section %d name %s data size %ld subSection index %ld\n", i, name, data->d_size, subsction_index++);
+			}
 		}
 	}
+	
+	elf_flagelf(dso->elf, ELF_C_SET, ELF_F_DIRTY);
 
 	if (readonly == 0 && elf_update (dso->elf, ELF_C_WRITE) < 0)
 	{
