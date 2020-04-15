@@ -538,6 +538,27 @@ obfuscated_str_del (void *p)
 static htab_t str_hash_t = NULL;
 static hashval_t str_hash_entry = 0;
 
+static unsigned long int next = 1; 
+
+int rand(void) // RAND_MAX assumed to be 32767 
+{ 
+    next = next * 1103515245 + 12345; 
+    return (unsigned int)(next/65536) % 32768; 
+} 
+
+void srand(unsigned int seed) 
+{ 
+    next = seed; 
+} 
+
+static char key_array [] = "thequickbrownfoxjumpsoverthelazydog";
+
+char generate_random_char( char originChar )
+{
+	int i = rand() % (sizeof(key_array) - 1);
+	return key_array[i];
+}
+
 void make_string_obfuscation(char * s)
 {
 	if ( str_hash_t == NULL )
@@ -559,7 +580,7 @@ void make_string_obfuscation(char * s)
 	int k = 0;
 	while (s[k] != '\0')
 	{
-		s[k] = 'x';
+		s[k] = generate_random_char( s[k] );
 		k++;
 	}
 	t->obf_str = strdup(s);
@@ -1838,7 +1859,7 @@ int hash_table_traverse_callback (void **slot, void *info)
 		char buffer[1024] = {0};
 		if ( strlen( t->origin_str) > 0 )
 		{
-			sprintf( buffer, "%s=%s", t->origin_str, t->obf_str);
+			sprintf( buffer, "%s=%s", t->obf_str, t->origin_str);
 			fprintf (debug_fd, "traverse hash entry: %s\n", buffer);
 			fprintf( hash_str_fd, "%s\n", buffer);
 		}
