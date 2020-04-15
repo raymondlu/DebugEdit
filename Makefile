@@ -1,8 +1,8 @@
 CC?=gcc
 CFLAGS+=-lelf -lpopt -Wall
-SOURCES=debugedit.c hashtab.c
+SOURCES=obfuscateElfStr.c hashtab.c
 OBJECTS=$(SOURCES:.c=.o)
-EXECUTABLE=debugedit
+EXECUTABLE=obfuscateElfStr
 
 all: $(SOURCES) $(EXECUTABLE)
 clean: 
