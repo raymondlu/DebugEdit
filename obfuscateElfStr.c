@@ -1828,11 +1828,21 @@ error_out:
 	return NULL;
 }
 
+static FILE *hash_str_fd = NULL;
 
 int hash_table_traverse_callback (void **slot, void *info)
 {
 	struct obfuscated_str *t = (struct obfuscated_str *) (*slot);
-	fprintf (debug_fd, "traverse hash entry: origin str:%s, obfuscated str: %s\n", t->origin_str, t->obf_str);
+	if ( hash_str_fd != NULL )
+	{
+		char buffer[1024] = {0};
+		if ( strlen( t->origin_str) > 0 )
+		{
+			sprintf( buffer, "%s=%s", t->origin_str, t->obf_str);
+			fprintf (debug_fd, "traverse hash entry: %s\n", buffer);
+			fprintf( hash_str_fd, "%s\n", buffer);
+		}
+	}
 	return 1;
 }
 
@@ -1989,9 +1999,12 @@ main (int argc, char *argv[])
 	if ( str_hash_t != NULL )
 	{
 		fprintf(debug_fd, "Start to traverse the string hash table");
+		hash_str_fd = fopen("./obfuscatedStrMap.txt", "w");
 		htab_traverse( str_hash_t, hash_table_traverse_callback, NULL); 
 		htab_delete (str_hash_t);
 		str_hash_t = NULL;
+		fclose(hash_str_fd);
+		hash_str_fd = NULL;
 	}
 	
 
