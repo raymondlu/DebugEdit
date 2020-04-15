@@ -43,7 +43,7 @@
 #include <popt.h>
 
 #include <gelf.h>
-#include <sys/elf_common.h>
+//#include <sys/elf_common.h>
 #include "dwarf.h"
 #include "hashtab.h"
 
@@ -1276,7 +1276,7 @@ static void edit_debugstr (DSO *dso, Elf_Data *data)
 	size_t consume_size = 0;
 	while (consume_size < size) {
 		char *strptr = (char *)data->d_buf + offset + consume_size;
-		fprintf(debug_fd, "debug string: current string %s, consume size %ld size %ld\n", strptr, consume_size, size);
+		fprintf(debug_fd, "obfuscate debug string: current string %s, consume size %ld size %ld\n", strptr, consume_size, size);
 		make_string_obfuscation(strptr);
 		consume_size += strlen(strptr) + 1;
 	}
@@ -1838,13 +1838,13 @@ main (int argc, char *argv[])
 
 	for (i = 1; i < dso->ehdr.e_shnum; i++)
 	{
-    Elf_Data *data;
-    Elf_Scn *scn;
+		Elf_Data *data;
+		Elf_Scn *scn;
 
 		const char *name;
 		name = strptr (dso, dso->ehdr.e_shstrndx, dso->shdr[i].sh_name);
 
-		//fprintf (debug_fd, "sh:%d, sh_type: %d, sh_name: %s\n", i, dso->shdr[i].sh_type, name);
+		fprintf (debug_fd, "sh:%d, sh_type: %d, sh_name: %s\n", i, dso->shdr[i].sh_type, name);
 		if (strncmp (name, ".debug_str", sizeof (".debug_str") - 1) == 0)
 		{
 			scn = dso->scn[i];
