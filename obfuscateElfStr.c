@@ -44,6 +44,7 @@
 
 #include <gelf.h>
 //#include <sys/elf_common.h>
+#include <stdbool.h>
 #include "dwarf.h"
 #include "hashtab.h"
 
@@ -502,14 +503,88 @@ void make_win_path(char * path)
 		k++;
 	}
 }
+
+
+struct obfuscated_str
+{
+	const char *origin_str;
+	const char *obf_str;
+	hashval_t entry;
+};
+
+	static hashval_t
+obfuscated_str_hash (const void *p)
+{
+	struct obfuscated_str *t = (struct obfuscated_str *)p;
+
+	return (hashval_t)t->entry;
+}
+
+	static int
+obfuscated_str_eq (const void *p, const void *q)
+{
+	struct obfuscated_str *t1 = (struct obfuscated_str *)p;
+	struct obfuscated_str *t2 = (struct obfuscated_str *)q;
+
+	return t1->entry == t2->entry;
+}
+
+	static void
+obfuscated_str_del (void *p)
+{
+	free (p);
+}
+
+static htab_t str_hash_t = NULL;
+static hashval_t str_hash_entry = 0;
+
 void make_string_obfuscation(char * s)
 {
+	if ( str_hash_t == NULL )
+	{
+		str_hash_t = htab_try_create (5000, obfuscated_str_hash, obfuscated_str_eq, obfuscated_str_del);
+		str_hash_entry = 0;
+
+		if ( str_hash_t == NULL )
+			goto no_memory;
+	}
+
+	struct obfuscated_str *t = NULL;
+	t = malloc (sizeof (struct obfuscated_str));
+	if (t == NULL)
+		goto no_memory;
+
+	t->origin_str = strdup(s);
+	t->entry = str_hash_entry++;
 	int k = 0;
 	while (s[k] != '\0')
 	{
 		s[k] = 'x';
 		k++;
 	}
+	t->obf_str = strdup(s);
+	void **slot;
+	slot = htab_find_slot (str_hash_t, t, INSERT);
+	if (slot == NULL)
+	{
+		free (t);
+		goto no_memory;
+	}
+	if (*slot != NULL)
+	{
+		error (0, 0, "Duplicate debug string %s", t->origin_str);
+		free (t);
+		htab_delete (str_hash_t);
+		str_hash_t = NULL;
+		return;
+	}
+
+	fprintf (debug_fd, "Successfully create hash entry: table size %ld, origin str:%s, obfuscated str: %s\n", str_hash_t->n_elements, t->origin_str, t->obf_str);
+	*slot = t;
+	return;
+no_memory:
+		error (0, ENOMEM, "Could not malloc memory in make_string_obfuscation");
+		return;
 }
 
 
@@ -1753,6 +1828,14 @@ error_out:
 	return NULL;
 }
 
+
+int hash_table_traverse_callback (void **slot, void *info)
+{
+	struct obfuscated_str *t = (struct obfuscated_str *) (*slot);
+	fprintf (debug_fd, "traverse hash entry: origin str:%s, obfuscated str: %s\n", t->origin_str, t->obf_str);
+	return 1;
+}
+
 	int
 main (int argc, char *argv[])
 {
@@ -1902,6 +1985,15 @@ main (int argc, char *argv[])
 		chmod (file, stat_buf.st_mode);
 
 	poptFreeContext (optCon);
+
+	if ( str_hash_t != NULL )
+	{
+		fprintf(debug_fd, "Start to traverse the string hash table");
+		htab_traverse( str_hash_t, hash_table_traverse_callback, NULL); 
+		htab_delete (str_hash_t);
+		str_hash_t = NULL;
+	}
+	
 
 	return 0;
 }
