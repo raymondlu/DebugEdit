@@ -522,7 +522,7 @@ struct obfuscated_str
 {
 	const char *origin_str;
 	const char *obf_str;
-	hashval_t entry;
+	unsigned long entry;
 };
 
 static unsigned long int next = 1; 
@@ -560,7 +560,7 @@ void make_string_obfuscation(char * s)
 	// 1. use hash entry index or address as the obfuscated string
 	// 2. if the src string is shorter than hash entry index and address, don't obfuscate it
 	char entry_index_buf[1024] = {0};
-	sprintf( entry_index_buf, "r%u", t->entry);
+	sprintf( entry_index_buf, "r%lu", t->entry);
 	char address_index_buf[1024] = {0};
 	sprintf( address_index_buf, "a%lu", (unsigned long)(t->origin_str));
 	char *long_str_buffer = strlen(entry_index_buf) > strlen(address_index_buf) ? entry_index_buf : address_index_buf; 
@@ -1882,7 +1882,7 @@ void printList(struct Node *node )
 		char buffer[1024] = {0};
 		if ( strlen( t->origin_str) > 0 )
 		{
-			sprintf( buffer, "%s=%s", t->obf_str, t->origin_str);
+			sprintf( buffer, "%lu:%s=%s", t->entry, t->obf_str, t->origin_str);
 			fprintf (debug_fd, "save hash entry: %s\n", buffer);
 			fprintf( hash_str_fd, "%s\n", buffer);
 		}
@@ -1925,6 +1925,7 @@ main (int argc, char *argv[])
 		poptPrintHelp(optCon, stdout, 0);
 		exit (1);
 	}
+
 
 	if (be_quiet != 0)
 	{
