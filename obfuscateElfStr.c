@@ -69,7 +69,20 @@ int list_file_fd = -1;
 int use_newline = 0;
 int list_only_files = 0;
 FILE *debug_fd;
+static FILE *hash_str_fd = NULL;
 int be_quiet = 0;
+
+/* A linked list node */
+struct Node 
+{ 
+	// Any data type can be stored in this node 
+	void  *data; 
+
+	struct Node *next; 
+}; 
+
+static struct Node *obfuscated_str_node = NULL; 
+void push(struct Node** head_ref, void *new_data);
 
 typedef struct
 {
@@ -512,32 +525,6 @@ struct obfuscated_str
 	hashval_t entry;
 };
 
-	static hashval_t
-obfuscated_str_hash (const void *p)
-{
-	struct obfuscated_str *t = (struct obfuscated_str *)p;
-
-	return (hashval_t)t->entry;
-}
-
-	static int
-obfuscated_str_eq (const void *p, const void *q)
-{
-	struct obfuscated_str *t1 = (struct obfuscated_str *)p;
-	struct obfuscated_str *t2 = (struct obfuscated_str *)q;
-
-	return t1->entry == t2->entry;
-}
-
-	static void
-obfuscated_str_del (void *p)
-{
-	free (p);
-}
-
-static htab_t str_hash_t = NULL;
-static hashval_t str_hash_entry = 0;
-
 static unsigned long int next = 1; 
 
 int rand(void) // RAND_MAX assumed to be 32767 
@@ -558,18 +545,9 @@ char generate_random_char( char originChar )
 	int i = rand() % (sizeof(key_array) - 1);
 	return key_array[i];
 }
-
+unsigned long str_hash_entry = 1;
 void make_string_obfuscation(char * s)
 {
-	if ( str_hash_t == NULL )
-	{
-		str_hash_t = htab_try_create (5000, obfuscated_str_hash, obfuscated_str_eq, obfuscated_str_del);
-		str_hash_entry = 0;
-
-		if ( str_hash_t == NULL )
-			goto no_memory;
-	}
-
 	struct obfuscated_str *t = NULL;
 	t = malloc (sizeof (struct obfuscated_str));
 	if (t == NULL)
@@ -626,28 +604,12 @@ void make_string_obfuscation(char * s)
 	t->obf_str = strdup(s);
 
 	// insert hash entry
-	void **slot;
-	slot = htab_find_slot (str_hash_t, t, INSERT);
-	if (slot == NULL)
-	{
-		free (t);
-		goto no_memory;
-	}
-	if (*slot != NULL)
-	{
-		error (0, 0, "Duplicate debug string %s", t->origin_str);
-		free (t);
-		htab_delete (str_hash_t);
-		str_hash_t = NULL;
-		return;
-	}
-
-	fprintf (debug_fd, "Successfully create hash entry: table size %ld, origin str:%s, obfuscated str: %s\n", str_hash_t->n_elements, t->origin_str, t->obf_str);
-	*slot = t;
+	fprintf (debug_fd, "Successfully create hash entry: origin str:%s, obfuscated str: %s\n",t->origin_str, t->obf_str);
+	push (&obfuscated_str_node, t);
 	return;
 no_memory:
-		error (0, ENOMEM, "Could not malloc memory in make_string_obfuscation");
-		return;
+	error (0, ENOMEM, "Could not malloc memory in make_string_obfuscation");
+	return;
 }
 
 
@@ -1891,23 +1853,44 @@ error_out:
 	return NULL;
 }
 
-static FILE *hash_str_fd = NULL;
 
-int hash_table_traverse_callback (void **slot, void *info)
+/* Function to add a node at the beginning of Linked List.
+   This function expects a pointer to the data to be added
+   and size of the data type */
+void push(struct Node** head_ref, void *new_data)
 {
-	struct obfuscated_str *t = (struct obfuscated_str *) (*slot);
-	if ( hash_str_fd != NULL )
-	{
+	// Allocate memory for node
+	struct Node* new_node = (struct Node*)malloc(sizeof(struct Node));
+
+	new_node->data  = new_data;
+	new_node->next = (*head_ref);
+
+	// Change head pointer as new node is added at the beginning
+	(*head_ref)    = new_node;
+}
+
+/* Function to print nodes in a given linked list. fpitr is used 
+   to access the function to be used for printing current node data. 
+   Note that different data types need different specifier in printf() */
+void printList(struct Node *node ) 
+{ 
+	fprintf(debug_fd, "Start to traverse the string hash table");
+	hash_str_fd = fopen("./obfuscatedStrMap.txt", "w");
+	while (hash_str_fd && node != NULL) 
+	{ 
+		struct obfuscated_str *t = (struct obfuscated_str *) (node->data);
 		char buffer[1024] = {0};
 		if ( strlen( t->origin_str) > 0 )
 		{
 			sprintf( buffer, "%s=%s", t->obf_str, t->origin_str);
-			fprintf (debug_fd, "traverse hash entry: %s\n", buffer);
+			fprintf (debug_fd, "save hash entry: %s\n", buffer);
 			fprintf( hash_str_fd, "%s\n", buffer);
 		}
-	}
-	return 1;
-}
+		node = node->next; 
+	} 
+	fclose(hash_str_fd);
+	hash_str_fd = NULL;
+} 
 
 	int
 main (int argc, char *argv[])
@@ -2059,17 +2042,7 @@ main (int argc, char *argv[])
 
 	poptFreeContext (optCon);
 
-	if ( str_hash_t != NULL )
-	{
-		fprintf(debug_fd, "Start to traverse the string hash table");
-		hash_str_fd = fopen("./obfuscatedStrMap.txt", "w");
-		htab_traverse( str_hash_t, hash_table_traverse_callback, NULL); 
-		htab_delete (str_hash_t);
-		str_hash_t = NULL;
-		fclose(hash_str_fd);
-		hash_str_fd = NULL;
-	}
-	
+	printList( obfuscated_str_node );
 
 	return 0;
 }
