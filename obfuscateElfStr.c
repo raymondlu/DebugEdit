@@ -545,7 +545,7 @@ char generate_random_char( char originChar )
 	int i = rand() % (sizeof(key_array) - 1);
 	return key_array[i];
 }
-unsigned long str_hash_entry = 1;
+unsigned long str_hash_entry = 0;
 void make_string_obfuscation(char * s)
 {
 	struct obfuscated_str *t = NULL;
@@ -604,7 +604,7 @@ void make_string_obfuscation(char * s)
 	t->obf_str = strdup(s);
 
 	// insert hash entry
-	fprintf (debug_fd, "Successfully create hash entry: origin str:%s, obfuscated str: %s\n",t->origin_str, t->obf_str);
+	fprintf (debug_fd, "Successfully create hash entry: origin str:%s, obfuscated str: %s, entry:%lu\n",t->origin_str, t->obf_str, t->entry);
 	push (&obfuscated_str_node, t);
 	return;
 no_memory:
@@ -1876,18 +1876,18 @@ void printList(struct Node *node )
 { 
 	fprintf(debug_fd, "Start to traverse the string hash table");
 	hash_str_fd = fopen("./obfuscatedStrMap.txt", "w");
+	//hash_str_fd = stdout;
+	//char big_buffer [1024*1024*500] = {0};
 	while (hash_str_fd && node != NULL) 
 	{ 
 		struct obfuscated_str *t = (struct obfuscated_str *) (node->data);
 		char buffer[1024] = {0};
-		if ( strlen( t->origin_str) > 0 )
-		{
-			sprintf( buffer, "%lu:%s=%s", t->entry, t->obf_str, t->origin_str);
-			fprintf (debug_fd, "save hash entry: %s\n", buffer);
-			fprintf( hash_str_fd, "%s\n", buffer);
-		}
+		sprintf( buffer, "%lu:%s=%s", t->entry, t->obf_str, t->origin_str);
+		fprintf (debug_fd, "save hash entry: %s\n", buffer);
+		fprintf( hash_str_fd, "%s\n", buffer);
 		node = node->next; 
 	} 
+	//fprintf( hash_str_fd, big_buffer);
 	fclose(hash_str_fd);
 	hash_str_fd = NULL;
 } 
