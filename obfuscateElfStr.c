@@ -577,13 +577,55 @@ void make_string_obfuscation(char * s)
 
 	t->origin_str = strdup(s);
 	t->entry = str_hash_entry++;
-	int k = 0;
-	while (s[k] != '\0')
+
+	// obfuscate string
+	// 1. use hash entry index or address as the obfuscated string
+	// 2. if the src string is shorter than hash entry index and address, don't obfuscate it
+	char entry_index_buf[1024] = {0};
+	sprintf( entry_index_buf, "r%u", t->entry);
+	char address_index_buf[1024] = {0};
+	sprintf( address_index_buf, "a%lu", (unsigned long)(t->origin_str));
+	char *long_str_buffer = strlen(entry_index_buf) > strlen(address_index_buf) ? entry_index_buf : address_index_buf; 
+	char *short_str_buffer = strlen(entry_index_buf) < strlen(address_index_buf) ? entry_index_buf : address_index_buf; 
+	if (strlen(long_str_buffer) < strlen(s))
 	{
-		s[k] = generate_random_char( s[k] );
-		k++;
+		int k = 0;
+		while (s[k] != '\0')
+		{
+			if ( k < strlen(long_str_buffer) )
+			{
+				s[k] = long_str_buffer[k];
+			}
+			else
+			{
+				s[k] = 'x';
+			}
+			k++;
+		}
+	}
+	else if (strlen(short_str_buffer) < strlen(s))
+	{
+		int k = 0;
+		while (s[k] != '\0')
+		{
+			if ( k < strlen(short_str_buffer) )
+			{
+				s[k] = short_str_buffer[k];
+			}
+			else
+			{
+				s[k] = 'x';
+			}
+			k++;
+		}
+	}
+	else
+	{
+		// do nothing
 	}
 	t->obf_str = strdup(s);
+
+	// insert hash entry
 	void **slot;
 	slot = htab_find_slot (str_hash_t, t, INSERT);
 	if (slot == NULL)
