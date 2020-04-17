@@ -70,7 +70,6 @@ int use_newline = 0;
 int list_only_files = 0;
 FILE *debug_fd;
 int be_quiet = 0;
-static FILE *hash_str_fd = NULL;
 
 typedef struct
 {
@@ -645,16 +644,6 @@ void make_string_obfuscation(char * s)
 
 	fprintf (debug_fd, "Successfully create hash entry: table size %ld, origin str:%s, obfuscated str: %s\n", str_hash_t->n_elements, t->origin_str, t->obf_str);
 	*slot = t;
-
-	if ( hash_str_fd != NULL )
-	{
-		char buffer[1024] = {0};
-		if ( strlen( t->origin_str) > 0 )
-		{
-			sprintf( buffer, "%s=%s", t->obf_str, t->origin_str);
-			fprintf( hash_str_fd, "%s\n", buffer);
-		}
-	}
 	return;
 no_memory:
 		error (0, ENOMEM, "Could not malloc memory in make_string_obfuscation");
@@ -1902,6 +1891,7 @@ error_out:
 	return NULL;
 }
 
+static FILE *hash_str_fd = NULL;
 
 int hash_table_traverse_callback (void **slot, void *info)
 {
@@ -1990,9 +1980,6 @@ main (int argc, char *argv[])
 		exit (1);
 	}
 
-	// open file to write obfuscated string map
-	hash_str_fd = fopen("./obfuscatedStrMap.txt", "w");
-
 	dso = fdopen_dso (fd, file, readonly);
 	if (dso == NULL)
 		exit (1);
@@ -2072,9 +2059,13 @@ main (int argc, char *argv[])
 
 	poptFreeContext (optCon);
 
-
-	if ( hash_str_fd != NULL )
+	if ( str_hash_t != NULL )
 	{
+		fprintf(debug_fd, "Start to traverse the string hash table");
+		hash_str_fd = fopen("./obfuscatedStrMap.txt", "w");
+		htab_traverse( str_hash_t, hash_table_traverse_callback, NULL); 
+		htab_delete (str_hash_t);
+		str_hash_t = NULL;
 		fclose(hash_str_fd);
 		hash_str_fd = NULL;
 	}
