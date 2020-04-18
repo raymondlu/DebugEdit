@@ -72,17 +72,7 @@ FILE *debug_fd;
 static FILE *hash_str_fd = NULL;
 int be_quiet = 0;
 
-/* A linked list node */
-struct Node 
-{ 
-	// Any data type can be stored in this node 
-	void  *data; 
-
-	struct Node *next; 
-}; 
-
-static struct Node *obfuscated_str_node = NULL; 
-void push(struct Node** head_ref, void *new_data);
+#define MAX_SYMBOL_LEN 1024
 
 typedef struct
 {
@@ -545,13 +535,51 @@ char generate_random_char( char originChar )
 	int i = rand() % (sizeof(key_array) - 1);
 	return key_array[i];
 }
+
+void printObfuscatedStr(struct obfuscated_str *node ) 
+{ 
+	//debug_fd = stdout;
+	//fprintf(debug_fd, "Start to traverse the string hash table:%lu\n", str_hash_entry);
+	if ( hash_str_fd == NULL ) {
+		hash_str_fd = fopen("./obfuscatedStrMap.txt", "wb");
+		//hash_str_fd = stdout;
+	}
+	//hash_str_fd = stdout;
+	//unsigned long buffer_size =  str_hash_entry * 100;
+	//char *big_buffer = malloc( buffer_size );
+	//memset( big_buffer, 0, buffer_size); 
+	if (hash_str_fd && node != NULL) 
+	{ 
+		//struct obfuscated_str *t = (struct obfuscated_str *) (node);
+		char buffer[MAX_SYMBOL_LEN * 2] = {0};
+		sprintf( buffer, "%lu:%s=%s", node->entry, node->obf_str, node->origin_str);
+		//fprintf (debug_fd, "save hash entry: %s\n", buffer);
+		fprintf( hash_str_fd, "%s\n", buffer);
+		//sprintf( big_buffer + strlen(big_buffer), buffer);
+		//node = node->next; 
+	} 
+	//fprintf( hash_str_fd, big_buffer);
+	//fwrite( big_buffer, 1, strlen(big_buffer) + 1, hash_str_fd);
+	//fclose(hash_str_fd);
+	//free(big_buffer);
+	//big_buffer = NULL;
+	//hash_str_fd = NULL;
+	//fprintf(debug_fd, "Finish to traverse the string hash table: %lu\n", buffer_size);
+} 
+
 unsigned long str_hash_entry = 0;
 void make_string_obfuscation(char * s)
 {
-	struct obfuscated_str *t = NULL;
-	t = malloc (sizeof (struct obfuscated_str));
-	if (t == NULL)
-		goto no_memory;
+	if ( strlen(s) > MAX_SYMBOL_LEN )
+	{
+		fprintf (debug_fd, "symbol too long skipped: %s\n", s);
+		return;
+	}
+	struct obfuscated_str container;
+	struct obfuscated_str *t = &container;
+	//t = malloc (sizeof (struct obfuscated_str));
+	//if (t == NULL)
+		//goto no_memory;
 
 	t->origin_str = strdup(s);
 	t->entry = str_hash_entry++;
@@ -559,9 +587,9 @@ void make_string_obfuscation(char * s)
 	// obfuscate string
 	// 1. use hash entry index or address as the obfuscated string
 	// 2. if the src string is shorter than hash entry index and address, don't obfuscate it
-	char entry_index_buf[1024] = {0};
+	char entry_index_buf[128] = {0};
 	sprintf( entry_index_buf, "r%lu", t->entry);
-	char address_index_buf[1024] = {0};
+	char address_index_buf[128] = {0};
 	sprintf( address_index_buf, "a%lu", (unsigned long)(t->origin_str));
 	char *long_str_buffer = strlen(entry_index_buf) > strlen(address_index_buf) ? entry_index_buf : address_index_buf; 
 	char *short_str_buffer = strlen(entry_index_buf) < strlen(address_index_buf) ? entry_index_buf : address_index_buf; 
@@ -605,11 +633,12 @@ void make_string_obfuscation(char * s)
 
 	// insert hash entry
 	fprintf (debug_fd, "Successfully create hash entry: origin str:%s, obfuscated str: %s, entry:%lu\n",t->origin_str, t->obf_str, t->entry);
-	push (&obfuscated_str_node, t);
+	//push (&obfuscated_str_node, t);
+	printObfuscatedStr(t);
 	return;
-no_memory:
+/*no_memory:
 	error (0, ENOMEM, "Could not malloc memory in make_string_obfuscation");
-	return;
+	return;*/
 }
 
 
@@ -1854,44 +1883,6 @@ error_out:
 }
 
 
-/* Function to add a node at the beginning of Linked List.
-   This function expects a pointer to the data to be added
-   and size of the data type */
-void push(struct Node** head_ref, void *new_data)
-{
-	// Allocate memory for node
-	struct Node* new_node = (struct Node*)malloc(sizeof(struct Node));
-
-	new_node->data  = new_data;
-	new_node->next = (*head_ref);
-
-	// Change head pointer as new node is added at the beginning
-	(*head_ref)    = new_node;
-}
-
-/* Function to print nodes in a given linked list. fpitr is used 
-   to access the function to be used for printing current node data. 
-   Note that different data types need different specifier in printf() */
-void printList(struct Node *node ) 
-{ 
-	fprintf(debug_fd, "Start to traverse the string hash table");
-	hash_str_fd = fopen("./obfuscatedStrMap.txt", "w");
-	//hash_str_fd = stdout;
-	//char big_buffer [1024*1024*500] = {0};
-	while (hash_str_fd && node != NULL) 
-	{ 
-		struct obfuscated_str *t = (struct obfuscated_str *) (node->data);
-		char buffer[1024] = {0};
-		sprintf( buffer, "%lu:%s=%s", t->entry, t->obf_str, t->origin_str);
-		fprintf (debug_fd, "save hash entry: %s\n", buffer);
-		fprintf( hash_str_fd, "%s\n", buffer);
-		node = node->next; 
-	} 
-	//fprintf( hash_str_fd, big_buffer);
-	fclose(hash_str_fd);
-	hash_str_fd = NULL;
-} 
-
 	int
 main (int argc, char *argv[])
 {
@@ -1926,6 +1917,7 @@ main (int argc, char *argv[])
 		exit (1);
 	}
 
+	//be_quiet = 1;
 
 	if (be_quiet != 0)
 	{
@@ -1994,7 +1986,7 @@ main (int argc, char *argv[])
 			debug_sections[DEBUG_STR].size = data->d_size;
 			debug_sections[DEBUG_STR].sec = i;
 			fprintf(debug_fd, "Record debug string section %d name %s data size %ld\n", i, name, data->d_size);
-			edit_debugstr(dso, data);
+			//edit_debugstr(dso, data);
 		}
 		else if (strncmp (name, ".symtab", sizeof (".symtab") - 1) == 0)
 		{
@@ -2043,7 +2035,12 @@ main (int argc, char *argv[])
 
 	poptFreeContext (optCon);
 
-	printList( obfuscated_str_node );
+	//printList( obfuscated_str_node );
+	if ( hash_str_fd != NULL ) {
+		fprintf(debug_fd, "close obfuscated string map file\n");
+		fclose(hash_str_fd);
+		//hash_str_fd = NULL;
+	}
 
 	return 0;
 }
