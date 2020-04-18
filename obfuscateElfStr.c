@@ -1759,7 +1759,7 @@ fail:
 
 static struct poptOption optionsTable[] =
 {
-	{
+	/*{
 		"base-dir",  'b', POPT_ARG_STRING, &base_dir, 0,
 		"base build directory of objects", NULL
 	},
@@ -1782,7 +1782,7 @@ static struct poptOption optionsTable[] =
 	{
 		"files-only", 'f', POPT_ARG_NONE, &list_only_files, 0,
 		"do not include directories into the list file", NULL
-	},
+	},*/
 	{
 		"quiet", 'q', POPT_ARG_NONE, &be_quiet, 0,
 		"quiet mode, do  not write anything to standard output", NULL
